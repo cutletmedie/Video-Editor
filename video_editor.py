@@ -1,13 +1,13 @@
-from modules import module
 import os
 import sys
-from PyQt6.QtGui import *
-from PyQt6.QtWidgets import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+from moviepy.editor import *
+from modules.editor import Video as video
 
 
 class Window(QMainWindow):
-    """Main Window."""
-
+    """Основное окно"""
     def __init__(self, full_filename=None):
         super(Window, self).__init__()
 
@@ -22,7 +22,9 @@ def main():
 
 
 if __name__ == '__main__':
+    # video_clip = video('tests\\sources\\video.mp4')
+    # video_clip.volume(0.5)
+    # # video = CompositeVideoClip([video_clip])
+    # video_clip.export('video')
+    print("1234".split('5')[0])
     main()
-    # module.print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
