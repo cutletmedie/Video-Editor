@@ -3,10 +3,9 @@ import sys
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
-from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
+from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer, QMediaPlaylist
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from moviepy.editor import *
-from modules.editor import Video as video
 
 
 class Window(QMainWindow):
@@ -15,58 +14,36 @@ class Window(QMainWindow):
         super(Window, self).__init__()
         self.initUI()
 
+    def resizeEvent(self, e):
+        super(Window, self).resizeEvent(e)
+        self.preview_widget.setFixedSize(int(self.size().width() / 1.7),
+                                         int(self.size().height() / 1.7))
+        self.preview_group.setFixedSize(int(self.size().width() / 1.6),
+                                        int(self.size().height() / 1.6))
+        self.__explorer.setFixedHeight(int(self.height() / 2))
+        # self.__explorer.setFixedSize(int(self.size().width() / 3.5), self.preview_group.height())
+
     def initUI(self):
-        self.resize(800, 600)
+        self.resize(1280, 720)
         self.setWindowTitle('Видеоредактор')
+        self.setWindowIcon(self.style().standardIcon(QStyle.SP_TrashIcon))
         window_css = """
             background-color: #3c3f41; 
             color: #bbbbbb; 
             font-size: 14px;
             """
         self.setStyleSheet(window_css)
-        self.setWindowFlags(Qt.WindowMinimizeButtonHint | Qt.WindowCloseButtonHint)
-        central_widget = QWidget(self)
-        outer_layout = QHBoxLayout()
-        outer_layout.setSpacing(0)
-        outer_layout.setContentsMargins(0, 0, 0, 0)
-        inner_right_layout = QVBoxLayout()
-        inner_right_layout.setSpacing(0)
-        inner_right_layout.setContentsMargins(0, 0, 0, 0)
-        inner_left_layout = QVBoxLayout()
-        inner_left_layout.setSpacing(0)
-        inner_left_layout.setContentsMargins(0, 0, 0, 0)
-        explorer = QGroupBox()
-        explorer.setStyleSheet("margin: 0px; padding: 0px; border: 1px solid #323232; border-top: 0px;")
+        self.init_menubar()
+        self.setMinimumSize(1280, 720)
+        # self.setFixedSize(self.size())
+        # self.setWindowFlags(Qt.WindowMinimizeButtonHint
+        # | Qt.WindowCloseButtonHint)
 
-        video_group = QGroupBox()
-        video_group.setStyleSheet("border: 1px solid #323232; border-radius: 1px; border-left: 0px; border-top: 0px;")
-        video_layout = QVBoxLayout()
-        self.widget = QVideoWidget(central_widget)
-        self.widget.setFixedSize(int(self.size().width() / 2),
-                                 int(self.size().height() / 2))
-        video_layout.addWidget(self.widget)
-        video_group.setLayout(video_layout)
-        self.player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
-        self.player.setVideoOutput(self.widget)
-        self.content = QMediaContent(QUrl.fromLocalFile("C:\\Users\\sjkey\\Desktop\\ФТ\\repos\\Video-Editor\\tests\\sources\\video.mp4"))
-        self.player.setMedia(self.content)
-        self.player.play()
-        buttons_group = QGroupBox()
-        play_button = QPushButton()
-        play_button.setFixedSize(50, 50)
-        play_button.setStyleSheet("border-radius : {}px; border: 1px solid #323232;".format(int(play_button.size().width() / 2)))
-        buttons_layout = QHBoxLayout()
-        buttons_layout.addWidget(play_button, alignment=Qt.AlignCenter)
-        buttons_group.setLayout(buttons_layout)
+        self.__central_widget = QWidget(self)
+        self.concatenate_inner_layouts()
 
-        inner_left_layout.addWidget(explorer)
-        inner_right_layout.addWidget(video_group)
-        inner_right_layout.addWidget(buttons_group)
-
-        outer_layout.addLayout(inner_left_layout)
-        outer_layout.addLayout(inner_right_layout)
-        central_widget.setLayout(outer_layout)
-        self.setCentralWidget(central_widget)
+        self.__central_widget.setLayout(self.__main_layout)
+        self.setCentralWidget(self.__central_widget)
 
     def init_menubar(self):
         menu_bar = self.menuBar()
@@ -78,6 +55,146 @@ class Window(QMainWindow):
             """
         menu_bar.setStyleSheet(menu_css)
         file_menu = menu_bar.addMenu("&Файл")
+
+    def init_inner_layouts(self):
+        self.__main_layout = QHBoxLayout()
+        self.__main_layout.setContentsMargins(0, 0, 0, 0)
+        self.__main_layout.setSpacing(0)
+        self.__inner_right_layout = QVBoxLayout()
+        self.__inner_right_layout.setContentsMargins(0, 0, 0, 0)
+        self.__inner_right_layout.setSpacing(0)
+        self.__inner_left_layout = QVBoxLayout()
+        self.__inner_left_layout.setContentsMargins(0, 0, 0, 0)
+        self.__inner_left_layout.setSpacing(0)
+
+    def concatenate_inner_layouts(self):
+        self.init_inner_layouts()
+        self.init_explorer()
+        self.init_explorer_controls()
+        self.init_controls()
+        self.init_preview()
+        self.init_player()
+        self.init_preview_controls()
+        self.init_timeline()
+        self.__inner_left_layout.addWidget(self.__explorer, 0,
+                                           Qt.AlignTop)
+        self.__inner_left_layout.addWidget(self.__explorer_controls)
+        self.__inner_right_layout.addWidget(
+            self.preview_group, 0, Qt.AlignTop | Qt.AlignHCenter)
+        self.__inner_right_layout.addWidget(
+            self.__preview_controls)
+        self.__inner_right_layout.addWidget(self.__timeline)
+        self.__main_layout.addLayout(self.__inner_left_layout)
+        self.__main_layout.addLayout(self.__inner_right_layout)
+
+    def init_explorer(self):
+        self.__explorer = QTreeView()
+        self.__explorer.setStyleSheet("""
+            background-color: #3c3f41;
+            color: #bbbbbb;
+            font-size: 14px;
+            border: 1px solid red;
+            """)
+
+
+    def init_explorer_controls(self):
+        self.__explorer_controls = QGroupBox()
+
+        frame = QFrame()
+        frame.setStyleSheet("""
+            background-color: #3c3f41;
+            color: #bbbbbb;
+            font-size: 14px;
+            border: 1px solid #323232;
+            """)
+        button = QPushButton()
+        button.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        layout = QHBoxLayout()
+        layout.addWidget(frame)
+        layout.addWidget(button)
+        self.__explorer_controls.setStyleSheet("""
+        [class="QGroupBox"] {
+                    background-color: #3c3f41;
+                    color: #bbbbbb;
+                    font-size: 14px;
+                    border: 1px solid red;}
+                    """)
+        self.__explorer_controls.setLayout(layout)
+
+    def init_controls(self):
+        self.__controls = QGroupBox()
+        self.__controls.setStyleSheet("""
+                    background-color: #3c3f41;
+                    margin: 0px; padding: 0px;
+                    border: 1px solid #323232;
+                    """)
+
+    def init_preview(self):
+        self.preview_group = QGroupBox()
+        self.preview_group.setStyleSheet("""
+                   border: 1px solid #323232; 
+                   border-radius: 1px; 
+                   background-color: #323232;
+                   """)
+        preview_layout = QVBoxLayout()
+        self.preview_widget = QVideoWidget()
+        preview_layout.addWidget(self.preview_widget, 0, Qt.AlignCenter)
+        preview_layout.setContentsMargins(0, 0, 0, 0)
+        self.preview_group.setLayout(preview_layout)
+
+    def init_player(self):
+        self.player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
+        self.player.setPosition(0)
+        self.player.setVideoOutput(self.preview_widget)
+        opening = QMediaContent(QUrl.fromLocalFile(
+            "C:\\Users\\sjkey\\Downloads\\videoplayback.webm"))
+        test_video = "C:\\Users\\sjkey\\Desktop\\ФТ\\repos\\Video-Editor\\tests\\sources\\video.mp4"
+        cursed_gif = "C:\\Users\\sjkey\\Downloads\\IMG_5150.MOV"
+        cursed_gif = QMediaContent(QUrl.fromLocalFile(cursed_gif))
+        reversed_cursed_gif = QMediaContent(QUrl.fromLocalFile(
+            "C:\\Users\\sjkey\\Downloads\\ezgif.com-gif-maker.gif"))
+        self.playlist = QMediaPlaylist()
+        self.playlist.addMedia([opening])
+        self.player.setPlaylist(self.playlist)
+        # self.playlist.setPlaybackMode(QMediaPlaylist.Loop)
+        self.player.play()
+
+    def init_preview_controls(self):
+        buttons_size = QSize(40, 40)
+
+        def play_pause():
+            if self.player.state() == QMediaPlayer.PlayingState:
+                self.play_pause_button.setIcon(
+                    self.style().standardIcon(QStyle.SP_MediaPause))
+                self.player.pause()
+            else:
+                self.play_pause_button.setIcon(
+                    self.style().standardIcon(QStyle.SP_MediaPlay))
+                self.player.play()
+
+        self.__preview_controls = QGroupBox()
+        self.__preview_controls.setStyleSheet("""
+            [class="QGroupBox"] {
+            border: 1px solid #323232;}
+            """)
+        preview_controls_layout = QHBoxLayout()
+        self.play_pause_button = QPushButton()
+        self.play_pause_button.setFixedSize(buttons_size)
+        self.play_pause_button.setIcon(
+            self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.play_pause_button.clicked.connect(play_pause)
+        preview_controls_layout.addWidget(
+            self.play_pause_button, 0, Qt.AlignHCenter)
+        self.__preview_controls.setLayout(preview_controls_layout)
+
+    def init_timeline(self):
+        self.__timeline = QGroupBox()
+        self.__timeline.setStyleSheet("""
+            background-color: #3c3f41;
+            color: #bbbbbb;
+            font-size: 14px;
+            border: 1px solid #323232;
+            """)
 
 
 def main():
