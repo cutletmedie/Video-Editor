@@ -61,11 +61,7 @@ class Window(QMainWindow):
         self.__main_layout.setContentsMargins(0, 0, 0, 0)
         self.__main_layout.setSpacing(0)
         self.__inner_right_layout = QVBoxLayout()
-        self.__inner_right_layout.setContentsMargins(0, 0, 0, 0)
-        self.__inner_right_layout.setSpacing(0)
         self.__inner_left_layout = QVBoxLayout()
-        self.__inner_left_layout.setContentsMargins(0, 0, 0, 0)
-        self.__inner_left_layout.setSpacing(0)
 
     def concatenate_inner_layouts(self):
         self.init_inner_layouts()
@@ -76,11 +72,10 @@ class Window(QMainWindow):
         self.init_player()
         self.init_preview_controls()
         self.init_timeline()
-        self.__inner_left_layout.addWidget(self.__explorer, 0,
-                                           Qt.AlignTop)
+        self.__inner_left_layout.addWidget(self.__explorer)
         self.__inner_left_layout.addWidget(self.__explorer_controls)
         self.__inner_right_layout.addWidget(
-            self.preview_group, 0, Qt.AlignTop | Qt.AlignHCenter)
+            self.preview_group)
         self.__inner_right_layout.addWidget(
             self.__preview_controls)
         self.__inner_right_layout.addWidget(self.__timeline)
@@ -96,28 +91,28 @@ class Window(QMainWindow):
             border: 1px solid red;
             """)
 
-
     def init_explorer_controls(self):
         self.__explorer_controls = QGroupBox()
-
         frame = QFrame()
         frame.setStyleSheet("""
-            background-color: #3c3f41;
+            background-color: #323232;
             color: #bbbbbb;
             font-size: 14px;
             border: 1px solid #323232;
+            margin: 0px; padding: 10px;
             """)
         button = QPushButton()
         button.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        # button.setFixedSize()
         layout = QHBoxLayout()
         layout.addWidget(frame)
-        layout.addWidget(button)
         self.__explorer_controls.setStyleSheet("""
         [class="QGroupBox"] {
                     background-color: #3c3f41;
                     color: #bbbbbb;
                     font-size: 14px;
-                    border: 1px solid red;}
+                    border: 1px solid red;
+                    padding: 0px;}
                     """)
         self.__explorer_controls.setLayout(layout)
 
@@ -148,43 +143,68 @@ class Window(QMainWindow):
         self.player.setVideoOutput(self.preview_widget)
         opening = QMediaContent(QUrl.fromLocalFile(
             "C:\\Users\\sjkey\\Downloads\\videoplayback.webm"))
-        test_video = "C:\\Users\\sjkey\\Desktop\\ФТ\\repos\\Video-Editor\\tests\\sources\\video.mp4"
-        cursed_gif = "C:\\Users\\sjkey\\Downloads\\IMG_5150.MOV"
-        cursed_gif = QMediaContent(QUrl.fromLocalFile(cursed_gif))
-        reversed_cursed_gif = QMediaContent(QUrl.fromLocalFile(
-            "C:\\Users\\sjkey\\Downloads\\ezgif.com-gif-maker.gif"))
+        test_video = QMediaContent(
+            QUrl.fromLocalFile(
+                "C:\\Users\\sjkey\\Desktop\\ФТ\\repos\\Video-Editor\\tests\\sources\\video.mp4"))
+        jojo = QMediaContent(
+            QUrl.fromLocalFile(
+                "C:\\Users\\sjkey\\Downloads\\U Got That - JJBA.mp4"))
+        edit_wolves = QMediaContent(
+            QUrl.fromLocalFile(
+                "C:\\Users\\sjkey\\Downloads\\The Last Of Us │ Wolves.mp4"))
+        edit_pet_cheetah = QMediaContent(QUrl.fromLocalFile(
+                "C:\\Users\\sjkey\\Downloads\\Jinx 丨 Pet Cheetah.mp4"))
         self.playlist = QMediaPlaylist()
-        self.playlist.addMedia([opening])
+        self.playlist.addMedia([edit_wolves, edit_pet_cheetah, jojo, opening])
         self.player.setPlaylist(self.playlist)
-        # self.playlist.setPlaybackMode(QMediaPlaylist.Loop)
-        self.player.play()
+        self.playlist.setPlaybackMode(QMediaPlaylist.Loop)
 
     def init_preview_controls(self):
         buttons_size = QSize(40, 40)
+        buttons_padding = 10
 
-        def play_pause():
+        def media_state_changed():
             if self.player.state() == QMediaPlayer.PlayingState:
-                self.play_pause_button.setIcon(
-                    self.style().standardIcon(QStyle.SP_MediaPause))
                 self.player.pause()
-            else:
-                self.play_pause_button.setIcon(
+                self.play_button.setIcon(
                     self.style().standardIcon(QStyle.SP_MediaPlay))
+            else:
                 self.player.play()
+                self.play_button.setIcon(
+                    self.style().standardIcon(QStyle.SP_MediaPause))
+
 
         self.__preview_controls = QGroupBox()
         self.__preview_controls.setStyleSheet("""
             [class="QGroupBox"] {
             border: 1px solid #323232;}
-            """)
+            [class="QPushButton"]""" +
+            f"{{padding: {buttons_padding}px; }}")
+        self.__preview_controls.setFixedHeight(buttons_size.height() + 2 * buttons_padding)
         preview_controls_layout = QHBoxLayout()
-        self.play_pause_button = QPushButton()
-        self.play_pause_button.setFixedSize(buttons_size)
-        self.play_pause_button.setIcon(
-            self.style().standardIcon(QStyle.SP_MediaPlay))
-        self.play_pause_button.clicked.connect(play_pause)
+        preview_controls_layout.setSpacing(5)
+        preview_controls_layout.setContentsMargins(0, 0, 0, 0)
+        preview_controls_layout.setStretch(0, 0)
+        self.play_button = QPushButton()
+        self.play_button.setFixedSize(buttons_size)
+        media_state_changed()
+        self.play_button.clicked.connect(media_state_changed)
+        self.next_button = QPushButton()
+        self.next_button.setFixedSize(buttons_size)
+        self.next_button.setIcon(
+            self.style().standardIcon(QStyle.SP_MediaSkipForward))
+        self.next_button.clicked.connect(self.player.playlist().next)
+        self.previous_button = QPushButton()
+        self.previous_button.setFixedSize(buttons_size)
+        self.previous_button.setIcon(
+            self.style().standardIcon(QStyle.SP_MediaSkipBackward))
+        self.previous_button.clicked.connect(self.player.playlist().previous)
         preview_controls_layout.addWidget(
-            self.play_pause_button, 0, Qt.AlignHCenter)
+            self.previous_button, 0, Qt.AlignRight)
+        preview_controls_layout.addWidget(
+            self.play_button)
+        preview_controls_layout.addWidget(
+            self.next_button, 0, Qt.AlignLeft)
         self.__preview_controls.setLayout(preview_controls_layout)
 
     def init_timeline(self):
@@ -195,6 +215,7 @@ class Window(QMainWindow):
             font-size: 14px;
             border: 1px solid #323232;
             """)
+        # self.__timeline.setFixedHeight()
 
 
 def main():
