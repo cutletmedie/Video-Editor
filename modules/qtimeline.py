@@ -46,7 +46,7 @@ class QTimeLine(QWidget):
         w = 0
 
         # Draw time
-        scale = self.get_scale()
+        scale = self.get_scale(self.duration)
         while w <= self.width():
             qp.drawText(w - 50, 0, 100, 100, Qt.AlignHCenter,
                         hhmmss(w * scale))
@@ -137,5 +137,14 @@ class QTimeLine(QWidget):
         self.durationChanged.emit(duration)
         self.update()
 
-    def get_scale(self):
-        return float(self.duration) / float(self.width())
+    def set_position(self, pos):
+        self.pointerPos = pos / self.get_scale(self.duration) \
+            if self.duration != 0 else 0
+        if self.pointerPos > self.width():
+            self.pointerPos = self.width()
+        self.pointerTimePos = self.pointerPos
+        self.positionChanged.emit(pos)
+        self.update()
+
+    def get_scale(self, scale):
+        return float(scale) / float(self.width())

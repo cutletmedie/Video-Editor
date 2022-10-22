@@ -13,6 +13,7 @@ class Window(QMainWindow):
     """Основное окно"""
     def __init__(self):
         super(Window, self).__init__()
+        self.project = None
         self.initUI()
 
     def resizeEvent(self, e):
@@ -176,7 +177,7 @@ class Window(QMainWindow):
         edit_pet_cheetah = QMediaContent(QUrl.fromLocalFile(
             "C:\\Users\\sjkey\\Downloads\\Jinx 丨 Pet Cheetah.mp4"))
         self.playlist = QMediaPlaylist()
-        self.playlist.addMedia([edit_wolves, edit_pet_cheetah, jojo, opening])
+        # self.playlist.addMedia([edit_wolves, edit_pet_cheetah, jojo, opening])
         self.player.setPlaylist(self.playlist)
         self.playlist.setPlaybackMode(QMediaPlaylist.Loop)
         self.player.positionChanged.connect(self.update_position)
@@ -225,11 +226,21 @@ class Window(QMainWindow):
         buttons_padding = 5
 
         def media_state_changed():
+            if self.player.mediaStatus() in (QMediaPlayer.NoMedia,
+                                            QMediaPlayer.UnknownMediaStatus,
+                                            QMediaPlayer.InvalidMedia):
+                self.play_button.setIcon(
+                    self.style().standardIcon(QStyle.SP_MediaPlay))
+                return
             if self.player.state() == QMediaPlayer.PlayingState:
                     self.player.pause()
                     self.play_button.setIcon(
                         self.style().standardIcon(QStyle.SP_MediaPlay))
-            else:
+            elif self.player.state() == QMediaPlayer.PausedState:
+                self.player.play()
+                self.play_button.setIcon(
+                    self.style().standardIcon(QStyle.SP_MediaPause))
+            elif self.player.state() == QMediaPlayer.StoppedState:
                 self.player.play()
                 self.play_button.setIcon(
                     self.style().standardIcon(QStyle.SP_MediaPause))
@@ -283,7 +294,7 @@ class Window(QMainWindow):
             self,
             "Открыть файл",
             "",
-            "Видеофайлы (*.mp4 *.MOV);;Аудиофайлы (*.mp3);;Изображения (*.")[0]
+            "Видеофайлы (*.mp4 *.MOV);;Аудиофайлы (*.mp3);;Изображения (*.jpeg *.jpg *.png")[0]
         if filename != '':
             self.player.setMedia(
                 QMediaContent(QUrl.fromLocalFile(filename)))
@@ -294,8 +305,11 @@ class Window(QMainWindow):
             self.current_TimeLabel.setText(hhmmss(position))
 
         self.slider.blockSignals(True)
+        self.__timeline.blockSignals(True)
+        self.__timeline.set_position(position)
         self.slider.setValue(position)
         self.slider.blockSignals(False)
+        self.__timeline.blockSignals(False)
 
     def update_duration(self, duration):
         self.slider.setMaximum(duration)
