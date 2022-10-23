@@ -26,12 +26,15 @@ def hhmmss(ms):
 class QTimeLine(QWidget):
     positionChanged = pyqtSignal(int)
     durationChanged = pyqtSignal(int)
+    videoPositionChanged = pyqtSignal(int)
 
-    def __init__(self, duration):
+    def __init__(self):
         super(QWidget, self).__init__()
-        self.duration = duration
+        self.duration = 0
         self.text_color = QColor("#bbbbbb")
         self.font = QFont("Decorative", 10)
+        self.video_position = 0
+
         self.pos = None
         self.pointerPos = None
         self.pointerTimePos = None
@@ -113,7 +116,8 @@ class QTimeLine(QWidget):
             x = self.pos.x()
             self.pointerPos = x
             self.positionChanged.emit(x)
-            # self.check_selection(x)
+            self.set_video_position(int(
+                self.get_scale(self.duration) * self.pointerPos))
             self.pointerTimePos = self.pointerPos
 
         self.update()
@@ -124,6 +128,8 @@ class QTimeLine(QWidget):
             self.pointerPos = x
             self.positionChanged.emit(x)
             self.pointerTimePos = self.pointerPos
+            self.set_video_position(int(
+                self.get_scale(self.duration) * self.pointerPos))
 
             self.update()
             self.clicking = True  # Set clicking check to true
@@ -140,18 +146,24 @@ class QTimeLine(QWidget):
         self.is_in = False
         self.update()
 
+    def set_video_position(self, pos):
+        self.video_position = pos
+        self.videoPositionChanged.emit(pos)
+        self.set_position(self.video_position)
+
     def set_duration(self, duration):
         self.duration = duration
         self.durationChanged.emit(duration)
         self.update()
 
-    def set_position(self, pos):
-        self.pointerPos = pos / self.get_scale(self.duration) \
+    def set_position(self, position):
+        self.pointerPos = \
+            position / self.get_scale(self.duration) \
             if self.duration != 0 else 0
         if self.pointerPos > self.width():
             self.pointerPos = self.width()
         self.pointerTimePos = self.pointerPos
-        self.positionChanged.emit(pos)
+        self.positionChanged.emit(position)
         self.update()
 
     def get_scale(self, scale):

@@ -11,8 +11,10 @@ class FileTypes(Enum):
 
 extension_dict = {
     '.mp4': FileTypes.VIDEO,
+    '.webm': FileTypes.VIDEO,
     '.avi': FileTypes.VIDEO,
     '.mov': FileTypes.VIDEO,
+    '.MOV': FileTypes.VIDEO,
     '.mp3': FileTypes.AUDIO,
     '.wav': FileTypes.AUDIO,
     '.jpg': FileTypes.IMAGE,

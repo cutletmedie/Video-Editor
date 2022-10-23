@@ -1,17 +1,15 @@
 import os
 import sys
-import cv2
-import numpy as np
-from PyQt5.QtGui import *
+
+from PyQt5 import QtCore, QtWidgets
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import *
-from PyQt5 import QtCore
-from PyQt5.QtCore import *
+from PyQt5.QtCore import QSize, Qt, QUrl
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer, QMediaPlaylist
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from modules.qtimeline import QTimeLine, hhmmss
 from modules.project import Project
-from moviepy.editor import *
-
+from modules.temp_directory import temp_dir, create_temp_icon
 
 class Window(QMainWindow):
     """Основное окно"""
@@ -107,9 +105,8 @@ class Window(QMainWindow):
             border: 1px solid #323232;}
             [class="QLabel"] {
             background-color: #3c3f41;
-            color: #bbbbbb;
-            font-size: 14px;
-            }
+            color: #1f1f1f;
+            font-size: 14px;}
             """)
         self.explorer_grid = QGridLayout(self.explorer_grid_widget)
         self.fulfill_grid()
@@ -185,7 +182,9 @@ class Window(QMainWindow):
         self.playlist.addMedia([edit_wolves, edit_pet_cheetah, jojo, opening])
         self.player.setPlaylist(self.playlist)
         self.playlist.setPlaybackMode(QMediaPlaylist.Loop)
-        self.player.positionChanged.connect(self.update_position)
+        lambda_set_video_position = \
+            lambda: self.__timeline.set_video_position(self.player.position())
+        self.player.positionChanged.connect(lambda_set_video_position)
         self.player.durationChanged.connect(self.update_duration)
 
     def init_preview(self):
@@ -299,14 +298,17 @@ class Window(QMainWindow):
             border: 1px solid #323232;
             """)
         timeline_layout = QHBoxLayout()
-        self.__timeline = QTimeLine(self.player.duration())
+        self.__timeline = QTimeLine()
         timeline_layout.addWidget(self.__timeline)
         self.__timeline_widget.setLayout(timeline_layout)
+        lambda_update_position = \
+            lambda: self.update_position(self.__timeline.video_position)
+        self.__timeline.videoPositionChanged.connect(lambda_update_position)
 
     def open_file(self):
         all_files = QFileDialog.getOpenFileNames(
             self, "Открыть файл", "",
-            """Видеофайлы (*.mp4);;
+            """Видеофайлы (*.mp4 *.MOV *.webm);;
             Аудиофайлы (*.mp3);;
             Изображения (*.jpeg *.jpg *.png)""")[0]
         for file_path in all_files:
@@ -318,44 +320,21 @@ class Window(QMainWindow):
                     self.__grid_files.append(file_path)
 
     def add_icon(self, file_path):
-        temp_path = os.path.join(os.path.dirname(__file__), "temp")
-        if not os.path.exists(temp_path):
-            os.mkdir(temp_path)
-        temp_path = temp_path.replace("\\", "/") + "/"
-        changed_file_path = \
-            file_path.replace(".", "_").replace("\\", "/").replace("/",
-                                                                   "_").replace(
-                ":", "")
-        icon_path = temp_path + changed_file_path + ".jpg"
-        jpg_compression_param = [int(cv2.IMWRITE_JPEG_QUALITY), 20]
-        if file_path.endswith(".mp4"):
-            cap = cv2.VideoCapture(file_path)
-            cap.set(1, 15)
-            frame = cap.read()[1]
-            im_buf_arr = cv2.imencode('.jpg', frame, jpg_compression_param)[1]
-            im_buf_arr.tofile(icon_path)
-            cap.release()
-        elif file_path.endswith(".png") \
-                or file_path.endswith(".jpg") \
-                or file_path.endswith(".jpeg"):
-            frame = cv2.imdecode(
-                np.fromfile(file_path, dtype=np.uint8), cv2.IMREAD_COLOR)
-            dim = get_resolution(frame.shape[1], frame.shape[0])
-            frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
-            im_buf_arr = cv2.imencode('.jpg', frame, jpg_compression_param)[1]
-            im_buf_arr.tofile(icon_path)
-        cv2.destroyAllWindows()
+        icon_name = os.path.basename(file_path)
+        icon_path = create_temp_icon(file_path)
+        if icon_path:
+            icon = QLabel()
+            tip = icon_name
+            icon.setToolTip(tip)
+            icon.setAlignment(Qt.AlignCenter)
+            icon.mouseDoubleClickEvent = \
+                lambda event: self.add_instance_to_timeline(file_path)
+            pixmap = QPixmap(icon_path)
+            icon.setPixmap(pixmap.scaled(150, 100, Qt.KeepAspectRatio))
 
-        icon = QLabel()
-        icon.setAlignment(Qt.AlignCenter)
-        icon.mouseDoubleClickEvent = \
-            lambda event: self.add_instance_to_timeline(file_path)
-        pixmap = QPixmap(icon_path)
-        icon.setPixmap(pixmap.scaled(150, 100, Qt.KeepAspectRatio))
-
-        row = len(self.__grid_files) // self.explorer_grid.columnCount()
-        col = len(self.__grid_files) % self.explorer_grid.columnCount()
-        self.explorer_grid.addWidget(icon, row, col)
+            row = len(self.__grid_files) // self.explorer_grid.columnCount()
+            col = len(self.__grid_files) % self.explorer_grid.columnCount()
+            self.explorer_grid.addWidget(icon, row, col)
 
     def update_position(self, position):
         if position >= 0:
@@ -363,7 +342,10 @@ class Window(QMainWindow):
 
         self.slider.blockSignals(True)
         self.__timeline.blockSignals(True)
-        self.__timeline.set_position(position)
+        if self.player.position() != position:
+            self.player.setPosition(position)
+        # self.__timeline.video_position = self.player.position()
+        # self.__timeline.set_position(self.player.position())
         self.slider.setValue(position)
         self.slider.blockSignals(False)
         self.__timeline.blockSignals(False)
@@ -378,17 +360,6 @@ class Window(QMainWindow):
         self.project.add_instance_to_timeline(file_path)
         # self.update_timeline()
 
-
-@staticmethod
-def get_resolution(width, height):
-    scale_resize = width / height
-    if width > height:
-        height = 200
-        width = int(height * scale_resize)
-    else:
-        width = 200
-        height = int(width / scale_resize)
-    return (width, height)
 
 def main():
     """Точка входа в приложение"""

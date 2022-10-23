@@ -2,6 +2,7 @@ import os
 from modules.timeline import Timeline
 from modules.explorer import Explorer
 from modules.file import File
+from modules.temp_directory import temp_dir
 
 
 class Project:
