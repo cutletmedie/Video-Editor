@@ -1,5 +1,7 @@
 import os
 import sys
+import cv2
+import numpy as np
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
@@ -7,13 +9,16 @@ from PyQt5.QtCore import *
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer, QMediaPlaylist
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from modules.qtimeline import QTimeLine, hhmmss
+from modules.project import Project
 from moviepy.editor import *
+
 
 class Window(QMainWindow):
     """Основное окно"""
     def __init__(self):
         super(Window, self).__init__()
-        self.project = None
+        self.project = Project()
+        self.__grid_files = []
         self.initUI()
 
     def resizeEvent(self, e):
@@ -29,7 +34,7 @@ class Window(QMainWindow):
             int(self.preview_group.width() -
                 self.preview_group.width() * 0.25))
 
-        self.explorer_grid_widget.setFixedHeight(int(self.height() / 2))
+        self.explorer_grid_widget.setFixedSize( int(self.width() - self.preview_group.width()),int(self.height() / 2))
 
     def initUI(self):
         self.resize(1280, 720)
@@ -101,10 +106,9 @@ class Window(QMainWindow):
             font-size: 14px;
             border: 1px solid #323232;}
             [class="QLabel"] {
-            background-color: #323232;
+            background-color: #3c3f41;
             color: #bbbbbb;
             font-size: 14px;
-            border: 1px solid #323232;
             }
             """)
         self.explorer_grid = QGridLayout(self.explorer_grid_widget)
@@ -121,12 +125,13 @@ class Window(QMainWindow):
         self.__explorer_controls = QGroupBox()
         self.__explorer_controls.setStyleSheet("""
                     [class="QGroupBox"] {
-                    border: 1px solid #323232;}
-                    [class="QPushButton"]""" +
+                    border: 1px solid #323232;}""" +
+                    """[class="QPushButton"]""" +
                     f"""{{ font-size: 18px;
                     color: #1f1f1f;
                     title-align: center;
-                    padding: {buttons_padding}px; }}""")
+                    padding: {buttons_padding}px;
+                    background-color: #515151;}}""")
         self.__explorer_controls.setFixedHeight(
             buttons_size.height() + 2 * buttons_padding)
 
@@ -177,7 +182,7 @@ class Window(QMainWindow):
         edit_pet_cheetah = QMediaContent(QUrl.fromLocalFile(
             "C:\\Users\\sjkey\\Downloads\\Jinx 丨 Pet Cheetah.mp4"))
         self.playlist = QMediaPlaylist()
-        # self.playlist.addMedia([edit_wolves, edit_pet_cheetah, jojo, opening])
+        self.playlist.addMedia([edit_wolves, edit_pet_cheetah, jojo, opening])
         self.player.setPlaylist(self.playlist)
         self.playlist.setPlaybackMode(QMediaPlaylist.Loop)
         self.player.positionChanged.connect(self.update_position)
@@ -190,17 +195,24 @@ class Window(QMainWindow):
                    border-radius: 1px; 
                    background-color: #323232;
                    """)
+        self.preview_group.setAlignment(Qt.AlignCenter)
         preview_layout = QVBoxLayout()
         self.preview_widget = QVideoWidget()
-        preview_layout.addWidget(self.preview_widget, 0, Qt.AlignCenter)
+        preview_layout.addWidget(self.preview_widget, 1, Qt.AlignCenter)
         preview_layout.setContentsMargins(0, 0, 0, 0)
         preview_duration_layout = QHBoxLayout()
         self.current_TimeLabel = QLabel("00:00:00")
+        self.current_TimeLabel.setStyleSheet("""
+                      color: #bbbbbb;
+                      """)
         self.total_TimeLabel = QLabel("00:00:00")
+        self.total_TimeLabel.setStyleSheet("""
+                      color: #bbbbbb;
+                      """)
         self.slider = QSlider(Qt.Horizontal)
         self.slider.setStyleSheet("""
                     QSlider::groove:horizontal {
-                    border: 1px solid #999999;
+                    border: 1px solid #515151;
                     height: 10px;
                     background: #323232;
                     margin: 2px 0;
@@ -214,9 +226,11 @@ class Window(QMainWindow):
                     }
                     """)
         self.slider.valueChanged.connect(self.player.setPosition)
-        preview_duration_layout.addWidget(self.current_TimeLabel, 0, Qt.AlignRight)
+        preview_duration_layout.addWidget(
+            self.current_TimeLabel, 0, Qt.AlignRight)
         preview_duration_layout.addWidget(self.slider)
-        preview_duration_layout.addWidget(self.total_TimeLabel, 0, Qt.AlignLeft)
+        preview_duration_layout.addWidget(
+            self.total_TimeLabel, 0, Qt.AlignLeft)
         preview_layout.addLayout(preview_duration_layout)
         self.preview_group.setLayout(preview_layout)
         self.player.setVideoOutput(self.preview_widget)
@@ -250,7 +264,7 @@ class Window(QMainWindow):
             [class="QGroupBox"] {
             border: 1px solid #323232;}
             [class="QPushButton"]""" +
-            f"{{padding: {buttons_padding}px; }}")
+            f"{{padding: {buttons_padding}px; background-color: #515151;}}")
         self.__preview_controls.setFixedHeight(buttons_size.height() + 2 * buttons_padding)
         preview_controls_layout = QHBoxLayout()
         preview_controls_layout.setContentsMargins(0, 0, 0, 0)
@@ -290,15 +304,58 @@ class Window(QMainWindow):
         self.__timeline_widget.setLayout(timeline_layout)
 
     def open_file(self):
-        filename = QFileDialog.getOpenFileName(
-            self,
-            "Открыть файл",
-            "",
-            "Видеофайлы (*.mp4 *.MOV);;Аудиофайлы (*.mp3);;Изображения (*.jpeg *.jpg *.png")[0]
-        if filename != '':
-            self.player.setMedia(
-                QMediaContent(QUrl.fromLocalFile(filename)))
-            self.play_button.setEnabled(True)
+        all_files = QFileDialog.getOpenFileNames(
+            self, "Открыть файл", "",
+            """Видеофайлы (*.mp4);;
+            Аудиофайлы (*.mp3);;
+            Изображения (*.jpeg *.jpg *.png)""")[0]
+        for file_path in all_files:
+            file_path = os.path.abspath(file_path)
+            self.project.open_file(file_path)
+            if len(self.__grid_files) < len(self.project.explorer.collection):
+                for i in range(len(self.__grid_files), len(self.project.explorer.collection)):
+                    self.add_icon(file_path)
+                    self.__grid_files.append(file_path)
+
+    def add_icon(self, file_path):
+        temp_path = os.path.join(os.path.dirname(__file__), "temp")
+        if not os.path.exists(temp_path):
+            os.mkdir(temp_path)
+        temp_path = temp_path.replace("\\", "/") + "/"
+        changed_file_path = \
+            file_path.replace(".", "_").replace("\\", "/").replace("/",
+                                                                   "_").replace(
+                ":", "")
+        icon_path = temp_path + changed_file_path + ".jpg"
+        jpg_compression_param = [int(cv2.IMWRITE_JPEG_QUALITY), 20]
+        if file_path.endswith(".mp4"):
+            cap = cv2.VideoCapture(file_path)
+            cap.set(1, 15)
+            frame = cap.read()[1]
+            im_buf_arr = cv2.imencode('.jpg', frame, jpg_compression_param)[1]
+            im_buf_arr.tofile(icon_path)
+            cap.release()
+        elif file_path.endswith(".png") \
+                or file_path.endswith(".jpg") \
+                or file_path.endswith(".jpeg"):
+            frame = cv2.imdecode(
+                np.fromfile(file_path, dtype=np.uint8), cv2.IMREAD_COLOR)
+            dim = get_resolution(frame.shape[1], frame.shape[0])
+            frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
+            im_buf_arr = cv2.imencode('.jpg', frame, jpg_compression_param)[1]
+            im_buf_arr.tofile(icon_path)
+        cv2.destroyAllWindows()
+
+        icon = QLabel()
+        icon.setAlignment(Qt.AlignCenter)
+        icon.mouseDoubleClickEvent = \
+            lambda event: self.add_instance_to_timeline(file_path)
+        pixmap = QPixmap(icon_path)
+        icon.setPixmap(pixmap.scaled(150, 100, Qt.KeepAspectRatio))
+
+        row = len(self.__grid_files) // self.explorer_grid.columnCount()
+        col = len(self.__grid_files) % self.explorer_grid.columnCount()
+        self.explorer_grid.addWidget(icon, row, col)
 
     def update_position(self, position):
         if position >= 0:
@@ -317,6 +374,21 @@ class Window(QMainWindow):
             self.total_TimeLabel.setText(hhmmss(duration))
             self.__timeline.set_duration(duration)
 
+    def add_instance_to_timeline(self, file_path):
+        self.project.add_instance_to_timeline(file_path)
+        # self.update_timeline()
+
+
+@staticmethod
+def get_resolution(width, height):
+    scale_resize = width / height
+    if width > height:
+        height = 200
+        width = int(height * scale_resize)
+    else:
+        width = 200
+        height = int(width / scale_resize)
+    return (width, height)
 
 def main():
     """Точка входа в приложение"""

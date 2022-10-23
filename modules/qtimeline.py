@@ -1,13 +1,16 @@
 from PyQt5.QtCore import Qt, QPoint, QLine, QRectF, pyqtSignal
-from PyQt5.QtGui import QPainter, QColor, QFont, QBrush, QPalette, QPen, QPolygon, QPainterPath
+from PyQt5.QtGui import QPainter, QColor, QFont, QBrush, QPalette, QPen, \
+    QPolygon, QPainterPath
 from PyQt5.QtWidgets import QWidget
 from random import randint
 
 __textColor__ = QColor(187, 187, 187)
 __backgroundColor__ = QColor(60, 63, 65)
 __font__ = QFont('Decorative', 10)
-__colors__ = [QColor(242, 158, 145), QColor(242, 195, 145), QColor(241, 242, 145), QColor(168, 242, 145),
-              QColor(145, 242, 221), QColor(145, 179, 242), QColor(173, 145, 242), QColor(242, 145, 242)]
+__colors__ = [QColor(242, 158, 145), QColor(242, 195, 145),
+              QColor(241, 242, 145), QColor(168, 242, 145),
+              QColor(145, 242, 221), QColor(145, 179, 242),
+              QColor(173, 145, 242), QColor(242, 145, 242)]
 
 
 def hhmmss(ms):
@@ -27,49 +30,56 @@ class QTimeLine(QWidget):
     def __init__(self, duration):
         super(QWidget, self).__init__()
         self.duration = duration
-        self.textColor = QColor("#bbbbbb")
+        self.text_color = QColor("#bbbbbb")
         self.font = QFont("Decorative", 10)
         self.pos = None
         self.pointerPos = None
         self.pointerTimePos = None
         self.clicking = False
         self.is_in = False
+        self.__qp = QPainter()
 
         self.setMouseTracking(True)
 
     def paintEvent(self, event):
-        qp = QPainter()
-        qp.begin(self)
-        qp.setPen(self.textColor)
-        qp.setFont(self.font)
-        qp.setRenderHint(QPainter.Antialiasing)
-        w = 0
+        self.__qp.begin(self)
+        self.__qp.setRenderHint(QPainter.Antialiasing)
+        self.__draw_time()
+        self.__draw_line()
+        self.__dash_lines()
+        self.__draw_cursor_line()
+        self.__draw_pointer()
 
-        # Draw time
+    def __draw_time(self):
+        self.__qp.setPen(self.text_color)
+        self.__qp.setFont(self.font)
+        w = 0
         scale = self.get_scale(self.duration)
         while w <= self.width():
-            qp.drawText(w - 50, 0, 100, 100, Qt.AlignHCenter,
+            self.__qp.drawText(w - 50, 0, 100, 100, Qt.AlignHCenter,
                         hhmmss(w * scale))
             w += 100
 
-        # Draw down line
-        qp.setPen(QPen(Qt.darkCyan, 5, Qt.SolidLine))
-        qp.drawLine(0, 40, self.width(), 40)
+    def __draw_line(self):
+        self.__qp.setPen(QPen(Qt.darkCyan))
+        self.__qp.drawLine(0, 40, self.width(), 40)
 
-        # Draw dash lines
+    def __dash_lines(self):
         point = 0
-        qp.setPen(QPen(self.textColor))
-        qp.drawLine(0, 40, self.width(), 40)
+        self.__qp.setPen(QPen(self.text_color))
+        self.__qp.drawLine(0, 40, self.width(), 40)
         while point <= self.width():
             if point % 30 != 0:
-                qp.drawLine(3 * point, 40, 3 * point, 30)
+                self.__qp.drawLine(3 * point, 40, 3 * point, 30)
             else:
-                qp.drawLine(3 * point, 40, 3 * point, 20)
+                self.__qp.drawLine(3 * point, 40, 3 * point, 20)
             point += 10
 
+    def __draw_cursor_line(self):
         if self.pos is not None and self.width() >= self.pos.x() >= 0 and self.is_in:
-            qp.drawLine(self.pos.x(), 0, self.pos.x(), 40)
+            self.__qp.drawLine(self.pos.x(), 0, self.pos.x(), 40)
 
+    def __draw_pointer(self):
         if self.pointerPos is not None:
             line = QLine(
                 QPoint(int(self.pointerTimePos), 40),
@@ -86,15 +96,13 @@ class QTimeLine(QWidget):
         path = QPainterPath()
         path.addRect(self.rect().x(), self.rect().y(), self.rect().width(),
                      self.rect().height())
-        qp.setClipPath(path)
+        self.__qp.setClipPath(path)
+        self.__qp.setPen(Qt.darkCyan)
+        self.__qp.setBrush(QBrush(Qt.darkCyan))
 
-        # Draw pointer
-        qp.setPen(Qt.darkCyan)
-        qp.setBrush(QBrush(Qt.darkCyan))
-
-        qp.drawPolygon(poly)
-        qp.drawLine(line)
-        qp.end()
+        self.__qp.drawPolygon(poly)
+        self.__qp.drawLine(line)
+        self.__qp.end()
 
     def mouseMoveEvent(self, e):
         if 0 <= e.pos().x() <= self.width():

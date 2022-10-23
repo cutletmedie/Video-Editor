@@ -46,6 +46,15 @@ class Explorer:
         file = copy.copy(explorer_element.file)
         return file
 
+    def get_explorer_element(self, path):
+        '''
+        :param path: str
+        :return: ExplorerElement
+        '''
+        for element in self.collection:
+            if element.file.path == path:
+                return element
+
     @staticmethod
     def is_in_explorer(self, item):
         """
@@ -53,6 +62,12 @@ class Explorer:
         возвращает ExplorerElement из коллекции,
         если у файла и элемента совпадают пути до файла
         """
+        # if isinstance(item, str):
+        #     for explorer_element in self.collection:
+        #         if explorer_element.file.path == item:
+        #             return True
+        #     return False
+
         if isinstance(item, ExplorerElement):
             item = item.file
         for explorer_element in self.collection:

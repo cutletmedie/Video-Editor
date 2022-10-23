@@ -37,20 +37,9 @@ class Project:
         else:
             self.explorer.remove_item(explorer_instance)
 
-
-
-    # def open_file(self, path):
-    #     if os.path.isfile(path):
-    #         replaced_files = self.explorer.add_item(video(os.path.abspath(path)))
-    #         if replaced_files:
-    #             for file in replaced_files:
-    #                 if file.element.path ==
-    #     else:
-    #         raise FileNotFoundError
-
-    # def close_file(self, path):
-    #     path = os.path.abspath(path)
-    #     for explorer_element in self.explorer.collection:
-    #         explorer_element.element.path ==
-    #     # for timeline_instance in self.timeline.collection:
-
+    def add_instance_to_timeline(self, path):
+        explorer_element = self.explorer.get_explorer_element(path)
+        self.timeline.add_instance(explorer_element)
+        print(len(self.timeline.collection))
+        for element in self.timeline.collection:
+            print(element.file.path)
