@@ -7,9 +7,11 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QSize, Qt, QUrl
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer, QMediaPlaylist
 from PyQt5.QtMultimediaWidgets import QVideoWidget
-from modules.qtimeline import QTimeLine, hhmmss
+from ui.qtimeline import QTimeLine, hhmmss
+from ui.qcontrol_effects import QControlEffects
 from modules.project import Project
 from modules.temp_directory import temp_dir, create_temp_icon
+
 
 class Window(QMainWindow):
     """Основное окно"""
@@ -32,7 +34,9 @@ class Window(QMainWindow):
             int(self.preview_group.width() -
                 self.preview_group.width() * 0.25))
 
-        self.explorer_grid_widget.setFixedSize( int(self.width() - self.preview_group.width()),int(self.height() / 2))
+        self.explorer_grid_widget.setFixedSize(
+            int(self.width() - self.preview_group.width()),
+            int(self.height() / 2))
 
     def initUI(self):
         self.resize(1280, 720)
@@ -78,16 +82,16 @@ class Window(QMainWindow):
         self.init_inner_layouts()
         self.init_explorer()
         self.init_explorer_controls()
-        self.init_controls()
+
         self.init_player()
         self.init_preview()
-
         self.init_preview_controls()
         self.init_timeline()
+        self.init_controls()
 
         self.__inner_left_layout.addWidget(self.explorer_grid_widget)
         self.__inner_left_layout.addWidget(self.__explorer_controls)
-        self.__inner_left_layout.addWidget(self.__controls)
+        self.__inner_left_layout.addWidget(self.__stacked_widget)
         self.__inner_right_layout.addWidget(
             self.preview_group)
         self.__inner_right_layout.addWidget(
@@ -128,7 +132,17 @@ class Window(QMainWindow):
                     color: #1f1f1f;
                     title-align: center;
                     padding: {buttons_padding}px;
-                    background-color: #515151;}}""")
+                    background-color: #3c3f41;
+                    border: 0px solid #323232;
+                    }}""" +
+                    """[class="QPushButton"]:hover""" +
+                    f"""{{ font-size: 18px;
+                    color: #1f1f1f;
+                    title-align: center;
+                    padding: {buttons_padding}px;
+                    background-color: rgba(187, 187, 187, 0.1);
+                    border: 0px solid #323232;
+                    }}""")
         self.__explorer_controls.setFixedHeight(
             buttons_size.height() + 2 * buttons_padding)
 
@@ -142,23 +156,24 @@ class Window(QMainWindow):
         self.__explorer_controls.setLayout(buttons_layout)
 
     def init_controls(self):
-        self.__controls = QGroupBox()
-        self.__controls.setStyleSheet("""
+        self.__stacked_widget = QStackedWidget()
+        controls = QControlEffects(self.__timeline.selectedInstances)
+        controls.setStyleSheet("""[class="QControlEffects"] {
                     background-color: #3c3f41;
                     margin: 0px; padding: 0px;
-                    border: 1px solid #323232;
+                    border: 1px solid #323232;}
                     """)
-        frame = QFrame()
-        frame.setStyleSheet("""
-                    background-color: #323232;
-                    color: #bbbbbb;
-                    font-size: 14px;
-                    border: 1px solid #323232;
-                    margin: 0px; padding: 10px;
-                    """)
-        layout = QHBoxLayout()
-        layout.addWidget(frame)
-        self.__controls.setLayout(layout)
+        empty_widget = QWidget()
+        empty_selected_layout = QVBoxLayout(empty_widget)
+        empty_selected_label = QLabel("Ничего не выбрано")
+        empty_selected_layout.addWidget(empty_selected_label, 0, Qt.AlignCenter)
+        self.__stacked_widget.addWidget(empty_widget)
+        self.__stacked_widget.addWidget(controls)
+        self.__stacked_widget.setCurrentIndex(0)
+        self.__timeline.selectedInstancesValueChanged.connect(
+            lambda: self.__stacked_widget.setCurrentIndex(
+                1 if self.__timeline.selectedInstances else 0))
+
 
     def init_player(self):
         self.player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
@@ -181,6 +196,7 @@ class Window(QMainWindow):
         self.playlist = QMediaPlaylist()
         self.playlist.addMedia([edit_wolves, edit_pet_cheetah, jojo, opening])
         self.player.setPlaylist(self.playlist)
+        self.player.setVolume(0)
         self.playlist.setPlaybackMode(QMediaPlaylist.Loop)
         lambda_set_video_position = \
             lambda: self.__timeline.set_video_position(self.player.position())
@@ -304,6 +320,7 @@ class Window(QMainWindow):
         lambda_update_position = \
             lambda: self.update_position(self.__timeline.video_position)
         self.__timeline.videoPositionChanged.connect(lambda_update_position)
+        self.__timeline.durationChanged.connect(self.update_duration)
 
     def open_file(self):
         all_files = QFileDialog.getOpenFileNames(
@@ -315,9 +332,17 @@ class Window(QMainWindow):
             file_path = os.path.abspath(file_path)
             self.project.open_file(file_path)
             if len(self.__grid_files) < len(self.project.explorer.collection):
-                for i in range(len(self.__grid_files), len(self.project.explorer.collection)):
+                for i in range(len(self.__grid_files),
+                               len(self.project.explorer.collection)):
                     self.add_icon(file_path)
                     self.__grid_files.append(file_path)
+
+    def close_file(self):
+        print(1)
+        # if self.__grid_files:
+        #     file_path = self.__grid_files.pop()
+        #     self.project.close_file(file_path)
+        #     self.remove_icon(file_path)
 
     def add_icon(self, file_path):
         icon_name = os.path.basename(file_path)
@@ -327,8 +352,11 @@ class Window(QMainWindow):
             tip = icon_name
             icon.setToolTip(tip)
             icon.setAlignment(Qt.AlignCenter)
+            icon.mousePressEvent = lambda event: icon.setStyleSheet("border: 1px solid cyan; padding: 1px;")
+            icon.mouseReleaseEvent = lambda event: icon.setStyleSheet("")
             icon.mouseDoubleClickEvent = \
-                lambda event: self.add_instance_to_timeline(file_path)
+                lambda event:\
+                    self.add_instance_to_timeline(icon_path, file_path)
             pixmap = QPixmap(icon_path)
             icon.setPixmap(pixmap.scaled(150, 100, Qt.KeepAspectRatio))
 
@@ -352,13 +380,20 @@ class Window(QMainWindow):
 
     def update_duration(self, duration):
         self.slider.setMaximum(duration)
-        if duration >= 0:
-            self.total_TimeLabel.setText(hhmmss(duration))
-            self.__timeline.set_duration(duration)
+        self.total_TimeLabel.setText(
+            hhmmss(duration))
 
-    def add_instance_to_timeline(self, file_path):
+    def add_instance_to_timeline(self, icon_path, file_path):
         self.project.add_instance_to_timeline(file_path)
-        # self.update_timeline()
+        self.update_timeline(icon_path)
+
+    def remove_instance_from_timeline(self, index):
+        self.project.remove_instance_from_timeline(index)
+        self.update_timeline(None, index)
+
+    def update_timeline(self, icon_path = None, index = None):
+        timeline_collection = self.project.timeline.collection
+        self.__timeline.update_timeline(timeline_collection, icon_path, index)
 
 
 def main():

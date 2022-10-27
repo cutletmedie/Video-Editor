@@ -41,6 +41,7 @@ class Project:
     def add_instance_to_timeline(self, path):
         explorer_element = self.explorer.get_explorer_element(path)
         self.timeline.add_instance(explorer_element)
-        print(len(self.timeline.collection))
-        for element in self.timeline.collection:
-            print(element.file.path)
+
+    def remove_instance_from_timeline(self, index):
+        instance = self.timeline.collection[index]
+        self.timeline.remove_instance(instance)

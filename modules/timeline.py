@@ -1,4 +1,6 @@
 from modules.explorer import Explorer
+from modules.file import FileTypes
+from math import trunc
 import copy
 from moviepy.editor import *
 
@@ -14,6 +16,12 @@ class TimelineInstance:
         self.__parent = explorer_element
         self.__volume_percentage = 100
         self.__speed_percentage = 100
+        self.__duration = trunc(self.file.content.duration) \
+            if self.file.file_type != FileTypes.IMAGE else 10
+
+    @property
+    def duration(self):
+        return self.__duration
 
     @property
     def parent(self):
@@ -103,3 +111,9 @@ class Timeline:
             self.collection.remove(instance)
             del instance
             return
+
+    def get_total_duration(self):
+        total_duration = 0
+        for instance in self.collection:
+            total_duration += instance.duration
+        return total_duration
